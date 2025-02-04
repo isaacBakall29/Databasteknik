@@ -1,6 +1,7 @@
 package org.example;
 
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class UserMenu {
@@ -41,21 +42,35 @@ public class UserMenu {
 
                 switch (choice) {
                     case 1:
+                        ArrayList<Integer> inStockId = new ArrayList<>();
+
                         checkOrderCreated();
-                        rs = stmt.executeQuery("SELECT productId, productName, productPrice FROM product");
+                        rs = stmt.executeQuery("SELECT productId, productName, productPrice FROM product WHERE productStock > 0");
                         System.out.println("\nAvailable Products:");
                         while (rs.next()) {
-                            System.out.println("Product ID: " + rs.getInt("productId"));
+
+                            int id = rs.getInt("productId");
+                            System.out.println("Product ID: " + id);
                             System.out.println("Product Name: " + rs.getString("productName"));
                             System.out.println("Product Price: " + rs.getDouble("productPrice"));
                             System.out.println();
+
+                            inStockId.add(id);
                         }
                         rs.close();
 
-                        System.out.print("Enter product ID: ");
                         int productId;
                         try {
-                            productId = Integer.parseInt(scanner.nextLine());
+                            while(true) {
+                                System.out.print("Enter product ID: ");
+
+                                productId = Integer.parseInt(scanner.nextLine());
+                                if(!inStockId.contains(productId)) {
+                                    System.out.println("Invalid product ID. Please enter a valid number.");
+                                } else {
+                                    break;
+                                }
+                            }
                         } catch (NumberFormatException e) {
                             System.out.println("Invalid product ID. Please enter a valid number.");
                             continue;
@@ -103,6 +118,7 @@ public class UserMenu {
     private void callAddToCart(int productId) {
         String sql = "{CALL AddToCart(?, ?, ?)}";
         try (CallableStatement stmt = conn.prepareCall(sql)) {
+
 
 
 
