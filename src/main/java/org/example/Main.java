@@ -1,7 +1,16 @@
 package org.example;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+
 public class Main {
 	public static void main(String[] args) {
-		System.out.println("Hello world!");
+		try (Connection conn = DatabaseConnection.getConnection()) {
+			if (conn != null) {
+				System.out.println("Connection is active!");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 	}
 }
