@@ -32,6 +32,7 @@ public class Main {
 								System.out.println("Invalid credentials.");
 							} else {
 								System.out.println("Login successful! User ID: " + customerId);
+								new UserMenu(conn, customerId);
 							}
 							break;
 
@@ -51,13 +52,7 @@ public class Main {
 						default:
 							System.out.println("Invalid choice. Try again.");
 					}
-<<<<<<< HEAD
 
-
-
-
-=======
->>>>>>> login
 				}
 			}
 		} catch (SQLException e) {
