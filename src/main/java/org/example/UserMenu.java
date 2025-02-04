@@ -21,13 +21,7 @@ public class UserMenu {
             ResultSet rs;
 
 
-            Statement stmt2 = conn.createStatement();
-            rs = stmt2.executeQuery("SELECT * FROM orders WHERE customerId = " + userId + " AND orderStatus = 'not payed'");
-
-
-            while (rs.next()) {
-                orderIdFromCustomerId = rs.getInt("orderId");
-            }
+            checkOrderCreated();
 
             clearScreen();
 
@@ -47,6 +41,7 @@ public class UserMenu {
 
                 switch (choice) {
                     case 1:
+                        checkOrderCreated();
                         rs = stmt.executeQuery("SELECT productId, productName, productPrice FROM product");
                         System.out.println("\nAvailable Products:");
                         while (rs.next()) {
@@ -70,9 +65,10 @@ public class UserMenu {
 
                         break;
                     case 2:
-
+                        checkOrderCreated();
                         // View Cart
                         if (orderIdFromCustomerId == -1) {
+                            clearScreen();
                             System.out.println("Cart is empty.");
                             break;
                         }
@@ -110,11 +106,9 @@ public class UserMenu {
 
 
 
-
             if (orderIdFromCustomerId == -1) {
                 stmt.setNull(1, Types.INTEGER);
-            }
-            else {
+            } else {
                 stmt.setInt(1, orderIdFromCustomerId);
             }
 
@@ -129,11 +123,22 @@ public class UserMenu {
     }
 
     public void clearScreen() {
-        System.out.print("\033[H\033[2J");
-        System.out.flush();
+        for (int i = 0; i < 100; i++) {
+            System.out.println();
+        }
+    }
 
-//        for (int i=0; i<100; i++){
-//            System.out.println();
-//        }
+    public void checkOrderCreated()  {
+        try {
+            Statement stmt2 = conn.createStatement();
+            ResultSet rs = stmt2.executeQuery("SELECT * FROM orders WHERE customerId = " + userId + " AND orderStatus = 'not payed'");
+
+
+            while (rs.next()) {
+                orderIdFromCustomerId = rs.getInt("orderId");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }
