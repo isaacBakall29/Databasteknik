@@ -13,6 +13,8 @@ public class UserMenu {
     public UserMenu(Connection conn, int userId) {
         this.conn = conn;
         this.userId = userId;
+        clearScreen();
+
         startMenu();
     }
 
@@ -26,7 +28,6 @@ public class UserMenu {
 
 
             while (true) {
-                clearScreen();
                 System.out.println("\n1. Add product");
                 System.out.println("2. View Cart");
                 System.out.println("3. Pay Cart");
@@ -37,14 +38,16 @@ public class UserMenu {
                 try {
                     choice = Integer.parseInt(scanner.nextLine());
                 } catch (NumberFormatException e) {
+                    clearScreen();
                     System.out.println("Invalid input. Please enter a number.");
+
                     continue;
                 }
 
                 switch (choice) {
                     case 1:
-                        clearScreen();
 
+                        clearScreen();
                         ArrayList<String> shoeNames = new ArrayList<>();
 
                         checkOrderCreated();
@@ -71,12 +74,15 @@ public class UserMenu {
                                 choiceName = scanner.nextLine();
                                 choiceName = choiceName.substring(0, 1).toUpperCase() + choiceName.substring(1).toLowerCase();
                                 if(!shoeNames.contains(choiceName)) {
+
                                     System.out.println("Invalid product name. Please enter a valid name.");
                                 } else {
                                     break;
                                 }
                             }
                         } catch (Exception e) {
+                            clearScreen();
+
                             System.out.println("Invalid product name. Please enter a valid name.");
                             continue;
                         }
@@ -110,6 +116,7 @@ public class UserMenu {
                                 choiceColor = scanner.nextLine();
                                 choiceColor = choiceColor.substring(0, 1).toUpperCase() + choiceColor.substring(1).toLowerCase();
                                 if(!shoeColors.contains(choiceColor)) {
+
                                     System.out.println("Invalid product color. Please enter a valid color.");
                                 } else {
                                     break;
@@ -140,12 +147,17 @@ public class UserMenu {
                         int choiceSize;
                         try {
                             while(true) {
+                                try {
                                 System.out.print("\nEnter shoe size: ");
                                 choiceSize = Integer.parseInt(scanner.nextLine());
                                 if(!shoeSizes.contains(choiceSize)) {
                                     System.out.println("Invalid product size. Please enter a valid size.");
                                 } else {
                                     break;
+                                }
+                                } catch (Exception e) {
+                                    System.out.println("Invalid product size. Please enter a valid size.");
+                                    continue;
                                 }
                             }
                         } catch (Exception e) {
@@ -163,6 +175,10 @@ public class UserMenu {
 
                         callAddToCart(productId);
 
+                        System.out.println("press enter to continue");
+                        scanner.nextLine();
+                        clearScreen();
+
                         break;
                     case 2:
 
@@ -172,6 +188,9 @@ public class UserMenu {
                         if (orderIdFromCustomerId == -1) {
                             clearScreen();
                             System.out.println("Cart is empty.");
+                            System.out.println("press enter to continue");
+                            scanner.nextLine();
+                            clearScreen();
                             break;
                         }
 
@@ -184,6 +203,7 @@ public class UserMenu {
 
                         System.out.println("press enter to continue");
                         scanner.nextLine();
+                        clearScreen();
 
                         break;
 
@@ -192,6 +212,10 @@ public class UserMenu {
                         checkOrderCreated();
                         if (orderIdFromCustomerId == -1) {
                             System.out.println("Cart is empty.");
+                            System.out.println("press enter to continue");
+                            scanner.nextLine();
+                            clearScreen();
+
                             break;
                         }
                         rs = stmt.executeQuery("SELECT SUM(productPrice) FROM product JOIN orderitems ON product.productId = orderitems.productId WHERE orderId = " + orderIdFromCustomerId);
@@ -204,13 +228,15 @@ public class UserMenu {
 
                         System.out.println("Total: $" + total);
 
-                        stmt.executeUpdate("UPDATE orderstatus SET orderStatus = 'payed' WHERE orderId = " + orderIdFromCustomerId);
+                        stmt.executeUpdate("UPDATE orders SET orderStatus = 'payed' WHERE orderId = " + orderIdFromCustomerId);
 
                         orderIdFromCustomerId = -1;
+
                         System.out.println("Order placed successfully!");
 
                         System.out.println("press enter to continue");
                         scanner.nextLine();
+                        clearScreen();
 
                         break;
 
@@ -249,6 +275,8 @@ public class UserMenu {
             stmt.setInt(3, productId);
 
             stmt.execute();
+            clearScreen();
+
             System.out.println("Product added to cart successfully!");
         } catch (SQLException e) {
             System.out.println("Error: " + e.getMessage());
