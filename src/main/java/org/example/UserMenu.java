@@ -42,18 +42,19 @@ public class UserMenu {
 
                 switch (choice) {
                     case 1:
+                        // Add product by Id
                         ArrayList<Integer> inStockId = new ArrayList<>();
+                        ArrayList<String> shoeNames = new ArrayList<>();
 
                         checkOrderCreated();
-                        rs = stmt.executeQuery("SELECT productId, productName, productPrice FROM product WHERE productStock > 0");
+                        rs = stmt.executeQuery("SELECT productName FROM product WHERE productStock > 0");
                         System.out.println("\nAvailable Products:");
                         while (rs.next()) {
 
+                            String shoeName = rs.getString("productName");
                             int id = rs.getInt("productId");
-                            System.out.println("Product ID: " + id);
-                            System.out.println("Product Name: " + rs.getString("productName"));
-                            System.out.println("Product Price: " + rs.getDouble("productPrice"));
-                            System.out.println();
+                            shoeNames.add(shoeName);
+                            System.out.print(shoeName + ", ");
 
                             inStockId.add(id);
                         }
@@ -62,9 +63,9 @@ public class UserMenu {
                         int productId;
                         try {
                             while(true) {
-                                System.out.print("Enter product ID: ");
+                                System.out.print("Enter shoe name: ");
 
-                                productId = Integer.parseInt(scanner.nextLine());
+                                choiceName = scanner.nextLine();
                                 if(!inStockId.contains(productId)) {
                                     System.out.println("Invalid product ID. Please enter a valid number.");
                                 } else {
