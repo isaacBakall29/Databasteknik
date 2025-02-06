@@ -1,256 +1,215 @@
 package org.example;
 
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.Scanner;
 
 public class UserMenu {
+
     private Connection conn;
     private int userId;
-    private Scanner scanner = new Scanner(System.in);
+    private JFrame frame;
+    private JPanel panel;
+    private JTextArea textArea;
     private int orderIdFromCustomerId = -1;
 
     public UserMenu(Connection conn, int userId) {
         this.conn = conn;
         this.userId = userId;
-        clearScreen();
 
-        startMenu();
+        initializeUI();
+        loadUserMenu();
     }
 
-    private void startMenu() {
+    private void initializeUI() {
+        frame = new JFrame("User Menu");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(400, 500);
+        frame.setLocationRelativeTo(null);
+
+        panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        textArea = new JTextArea();
+        textArea.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        panel.add(scrollPane);
+
+        JButton addButton = new JButton("Add product");
+        JButton viewButton = new JButton("View Cart");
+        JButton payButton = new JButton("Pay Cart");
+        JButton logoutButton = new JButton("Logout");
+
+        addButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                addProductToCart();
+            }
+        });
+
+        viewButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                viewCart();
+            }
+        });
+
+        payButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                payCart();
+            }
+        });
+
+        logoutButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                logout();
+            }
+        });
+
+        panel.add(addButton);
+        panel.add(viewButton);
+        panel.add(payButton);
+        panel.add(logoutButton);
+
+        frame.add(panel);
+        frame.setVisible(true);
+    }
+
+    private void loadUserMenu() {
         try {
             Statement stmt = conn.createStatement();
             ResultSet rs;
 
+            checkOrderCreated();
+
+            StringBuilder menuText = new StringBuilder("<html>");
+            menuText.append("<font color='blue'>Welcome!</font><br>");
+
+            menuText.append("<font color='green'><b>Add product:</b> purchase any cool product we have to offer</font><br>");
+            menuText.append("<font color='orange'><b>View Cart:</b> Click to see what you want to buy</font><br>");
+            menuText.append("<font color='red'><b>Pay Cart:</b> finalize your purchase</font><br>");
+            menuText.append("<font color='purple'><b>Logout:</b> Keep your account safe by logging out <3</font><br>");
+
+            menuText.append("</html>");
+
+            JTextPane textArea = new JTextPane();
+            textArea.setEditable(false);
+
+            textArea.setContentType("text/html");
+            textArea.setText(menuText.toString());
+
+
+            JScrollPane scrollPane = new JScrollPane(textArea);
+            panel.add(scrollPane);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private void addProductToCart() {
+        try {
+            ArrayList<String> shoeNames = new ArrayList<>();
+            ArrayList<String> shoeDetails = new ArrayList<>();
+            Statement stmt = conn.createStatement();
+            ResultSet rs;
 
             checkOrderCreated();
 
+            rs = stmt.executeQuery("SELECT productName, productColor, productSize, productId FROM product WHERE productStock > 0");
+            while (rs.next()) {
+                String shoeName = rs.getString("productName");
+                String shoeColor = rs.getString("productColor");
+                int shoeSize = rs.getInt("productSize");
+                int productId = rs.getInt("productId");
 
-            while (true) {
-                System.out.println("\n1. Add product");
-                System.out.println("2. View Cart");
-                System.out.println("3. Pay Cart");
-                System.out.println("0. Logout");
-                System.out.print("Enter choice: ");
+                String shoeDetail = shoeName + " - " + shoeColor + " - Size: " + shoeSize;
+                shoeDetails.add(shoeDetail);
+                shoeNames.add(shoeName);
+            }
 
-                int choice;
-                try {
-                    choice = Integer.parseInt(scanner.nextLine());
-                } catch (NumberFormatException e) {
-                    clearScreen();
-                    System.out.println("Invalid input. Please enter a number.");
+            // Show options in a dialog box
+            String choice = (String) JOptionPane.showInputDialog(frame,
+                    "Select a shoe:",
+                    "Select Shoe",
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    shoeDetails.toArray(),
+                    shoeDetails.get(0));
 
-                    continue;
+            if (choice != null) {
+                String[] choiceParts = choice.split(" - ");
+                String chosenName = choiceParts[0];
+                String chosenColor = choiceParts[1].trim();
+                int chosenSize = Integer.parseInt(choiceParts[2].replace("Size:", "").trim());
+
+                rs = stmt.executeQuery("SELECT productId FROM product WHERE productName = '" + chosenName + "' AND productColor = '" + chosenColor + "' AND productSize = " + chosenSize);
+                if (rs.next()) {
+                    int productId = rs.getInt("productId");
+                    callAddToCart(productId);
+                } else {
+                    JOptionPane.showMessageDialog(frame, "Selected product not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(frame, "No shoe selected.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private void viewCart() {
+        try {
+            Statement stmt = conn.createStatement();
+            checkOrderCreated();
+
+            if (orderIdFromCustomerId == -1) {
+                JOptionPane.showMessageDialog(frame, "Cart is empty.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                ResultSet rs = stmt.executeQuery("SELECT productName, productPrice, productColor, productSize FROM product JOIN orderitems ON product.productId = orderitems.productId WHERE orderId = " + orderIdFromCustomerId);
+                StringBuilder cartText = new StringBuilder("Cart:\n");
+                while (rs.next()) {
+                    cartText.append(rs.getString("productName"))
+                            .append(": ").append(rs.getString("productColor"))
+                            .append(", ").append(rs.getInt("productSize"))
+                            .append(", $").append(rs.getDouble("productPrice"))
+                            .append("\n");
+                }
+                textArea.setText(cartText.toString());
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void payCart() {
+        try {
+            Statement stmt = conn.createStatement();
+            checkOrderCreated();
+
+            if (orderIdFromCustomerId == -1) {
+                JOptionPane.showMessageDialog(frame, "Cart is empty.", "Error", JOptionPane.ERROR_MESSAGE);
+            } else {
+                ResultSet rs = stmt.executeQuery("SELECT SUM(productPrice) FROM product JOIN orderitems ON product.productId = orderitems.productId WHERE orderId = " + orderIdFromCustomerId);
+
+                double total = 0;
+                while (rs.next()) {
+                    total = rs.getDouble(1);
                 }
 
-                switch (choice) {
-                    case 1:
-
-                        clearScreen();
-                        ArrayList<String> shoeNames = new ArrayList<>();
-
-                        checkOrderCreated();
-                        rs = stmt.executeQuery("SELECT productName FROM product WHERE productStock > 0");
-                        System.out.println("\nAvailable Products:");
-                        while (rs.next()) {
-
-                            String shoeName = rs.getString("productName");
-                            if (shoeNames.contains(shoeName)) {
-                                continue;
-                            }
-                            shoeNames.add(shoeName);
-                            System.out.print(shoeName + ", ");
-
-                        }
-                        rs.close();
-
-                        String choiceName;
-                        try {
-                            while(true) {
-                                System.out.println();
-                                System.out.print("Enter shoe name: ");
-
-                                choiceName = scanner.nextLine();
-                                choiceName = choiceName.substring(0, 1).toUpperCase() + choiceName.substring(1).toLowerCase();
-                                if(!shoeNames.contains(choiceName)) {
-
-                                    System.out.println("Invalid product name. Please enter a valid name.");
-                                } else {
-                                    break;
-                                }
-                            }
-                        } catch (Exception e) {
-                            clearScreen();
-
-                            System.out.println("Invalid product name. Please enter a valid name.");
-                            continue;
-                        }
-
-
-                        clearScreen();
-
-
-                        rs = stmt.executeQuery("SELECT productColor FROM product WHERE productStock > 0 AND productName = '" + choiceName + "'");
-
-                        ArrayList<String> shoeColors = new ArrayList<>();
-
-                        System.out.println("\nAvailable Colors:");
-                        while (rs.next()) {
-
-                            String shoeColor = rs.getString("productColor");
-                            if (shoeColors.contains(shoeColor)) {
-                                continue;
-                            }
-                            shoeColors.add(shoeColor);
-                            System.out.print(shoeColor + ", ");
-
-                        }
-                        rs.close();
-
-                        String choiceColor;
-                        try {
-                            while(true) {
-
-                                System.out.print("\nEnter shoe color: ");
-                                choiceColor = scanner.nextLine();
-                                choiceColor = choiceColor.substring(0, 1).toUpperCase() + choiceColor.substring(1).toLowerCase();
-                                if(!shoeColors.contains(choiceColor)) {
-
-                                    System.out.println("Invalid product color. Please enter a valid color.");
-                                } else {
-                                    break;
-                                }
-                            }
-                        } catch (Exception e) {
-                            System.out.println("Invalid product color. Please enter a valid color.");
-                            continue;
-                        }
-
-                        clearScreen();
-
-
-                        rs = stmt.executeQuery("SELECT productSize FROM product WHERE productStock > 0 AND productName = '" + choiceName + "' AND productColor = '" + choiceColor + "'");
-
-                        ArrayList<Integer> shoeSizes = new ArrayList<>();
-                        System.out.println("\nAvailable Sizes:");
-                        while (rs.next()) {
-                            int shoeSize = rs.getInt("productSize");
-                            if (shoeSizes.contains(shoeSize)) {
-                                continue;
-                            }
-                            shoeSizes.add(shoeSize);
-                            System.out.print(shoeSize + ", ");
-                        }
-                        rs.close();
-
-                        int choiceSize;
-                        try {
-                            while(true) {
-                                try {
-                                System.out.print("\nEnter shoe size: ");
-                                choiceSize = Integer.parseInt(scanner.nextLine());
-                                if(!shoeSizes.contains(choiceSize)) {
-                                    System.out.println("Invalid product size. Please enter a valid size.");
-                                } else {
-                                    break;
-                                }
-                                } catch (Exception e) {
-                                    System.out.println("Invalid product size. Please enter a valid size.");
-                                    continue;
-                                }
-                            }
-                        } catch (Exception e) {
-                            System.out.println("Invalid product size. Please enter a valid size.");
-                            continue;
-                        }
-
-                        int productId = -1;
-
-                        rs = stmt.executeQuery("SELECT productId FROM product WHERE productName = '" + choiceName + "' AND productColor = '" + choiceColor + "' AND productSize = " + choiceSize);
-                        while (rs.next()) {
-                            productId = rs.getInt("productId");
-                        }
-                        rs.close();
-
-                        callAddToCart(productId);
-
-                        System.out.println("press enter to continue");
-                        scanner.nextLine();
-                        clearScreen();
-
-                        break;
-                    case 2:
-
-                        clearScreen();
-                        checkOrderCreated();
-                        // View Cart
-                        if (orderIdFromCustomerId == -1) {
-                            clearScreen();
-                            System.out.println("Cart is empty.");
-                            System.out.println("press enter to continue");
-                            scanner.nextLine();
-                            clearScreen();
-                            break;
-                        }
-
-                        rs = stmt.executeQuery("SELECT productName, productPrice, productColor, productSize FROM product JOIN orderitems ON product.productId = orderitems.productId WHERE orderId = " + orderIdFromCustomerId);
-                        System.out.println("\nCart:");
-                        while (rs.next()) {
-                            System.out.println(rs.getString("productName") + ": " + rs.getString("productColor") + ", " + rs.getInt("productSize") + ", $" + rs.getDouble("productPrice"));
-                            System.out.println();
-                        }
-
-                        System.out.println("press enter to continue");
-                        scanner.nextLine();
-                        clearScreen();
-
-                        break;
-
-                    case 3:
-                        clearScreen();
-                        checkOrderCreated();
-                        if (orderIdFromCustomerId == -1) {
-                            System.out.println("Cart is empty.");
-                            System.out.println("press enter to continue");
-                            scanner.nextLine();
-                            clearScreen();
-
-                            break;
-                        }
-                        rs = stmt.executeQuery("SELECT SUM(productPrice) FROM product JOIN orderitems ON product.productId = orderitems.productId WHERE orderId = " + orderIdFromCustomerId);
-
-                        double total = 0;
-                        while (rs.next()) {
-                            total = rs.getDouble(1);
-                        }
-                        rs.close();
-
-                        System.out.println("Total: $" + total);
-
-                        stmt.executeUpdate("UPDATE orders SET orderStatus = 'payed' WHERE orderId = " + orderIdFromCustomerId);
-
-                        orderIdFromCustomerId = -1;
-
-                        System.out.println("Order placed successfully!");
-
-                        System.out.println("press enter to continue");
-                        scanner.nextLine();
-                        clearScreen();
-
-                        break;
-
-
-
-
-                    case 0:
-
-                        clearScreen();
-
-                        System.out.println("Bye!");
-                        return;
-                    default:
-                        System.out.println("Invalid choice. Please try again.");
+                int option = JOptionPane.showConfirmDialog(frame, "Total: $" + total + "\nDo you want to proceed with payment?", "Confirm Payment", JOptionPane.YES_NO_OPTION);
+                if (option == JOptionPane.YES_OPTION) {
+                    stmt.executeUpdate("UPDATE orders SET orderStatus = 'payed' WHERE orderId = " + orderIdFromCustomerId);
+                    orderIdFromCustomerId = -1;
+                    JOptionPane.showMessageDialog(frame, "Order placed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    textArea.setText("");
                 }
             }
         } catch (SQLException e) {
@@ -258,13 +217,13 @@ public class UserMenu {
         }
     }
 
+    private void logout() {
+        frame.dispose();
+    }
+
     private void callAddToCart(int productId) {
         String sql = "{CALL AddToCart(?, ?, ?)}";
         try (CallableStatement stmt = conn.prepareCall(sql)) {
-
-
-
-
             if (orderIdFromCustomerId == -1) {
                 stmt.setNull(1, Types.INTEGER);
             } else {
@@ -275,26 +234,16 @@ public class UserMenu {
             stmt.setInt(3, productId);
 
             stmt.execute();
-            clearScreen();
-
-            System.out.println("Product added to cart successfully!");
+            JOptionPane.showMessageDialog(frame, "Product added to cart successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
         } catch (SQLException e) {
-            System.out.println("Error: " + e.getMessage());
+            JOptionPane.showMessageDialog(frame, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    public void clearScreen() {
-        for (int i = 0; i < 100; i++) {
-            System.out.println();
-        }
-    }
-
-    public void checkOrderCreated()  {
+    private void checkOrderCreated() {
         try {
             Statement stmt2 = conn.createStatement();
             ResultSet rs = stmt2.executeQuery("SELECT * FROM orders WHERE customerId = " + userId + " AND orderStatus = 'not payed'");
-
-
             while (rs.next()) {
                 orderIdFromCustomerId = rs.getInt("orderId");
             }

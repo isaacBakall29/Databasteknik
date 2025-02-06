@@ -1,79 +1,88 @@
 package org.example;
 
+import javax.swing.*;
+import java.awt.*;
 import java.sql.*;
-import java.util.Scanner;
 
 public class Main {
+	private JFrame frame;
+	private Connection conn;
 
 	public Main() {
-		Scanner sc = new Scanner(System.in);
+		conn = DatabaseConnection.getConnection();
 
-		try (Connection conn = DatabaseConnection.getConnection()) {
-			if (conn != null) {
-				while (true) {
-					printMenu();
-					int choice;
-					try {
-						choice = Integer.parseInt(sc.nextLine());
-					} catch (NumberFormatException e) {
-						System.out.println("Invalid input. Please enter a number.");
-						continue;
-					}
+		if (conn != null) {
+			frame = new JFrame("Login Menu");
+			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+			frame.setSize(400, 300);
+			frame.setLayout(new FlowLayout());
 
-					switch (choice) {
-						case 1:
-							System.out.println("Username: ");
-							String customerName = sc.nextLine();
-							System.out.println("Password: ");
-							String customerPassword = sc.nextLine();
+			JButton loginButton = new JButton("Login");
+			JButton createAccountButton = new JButton("Create Account");
+			JButton exitButton = new JButton("Exit");
 
-							int customerId = authenticateUser(conn, customerName, customerPassword);
-							if (customerId == -1) {
-								System.out.println("Invalid credentials.");
-							} else {
-								System.out.println("Login successful! User ID: " + customerId);
-								new UserMenu(conn, customerId);
-							}
-							break;
+			frame.add(loginButton);
+			frame.add(createAccountButton);
+			frame.add(exitButton);
 
-						case 2:
-							System.out.println("Greetings, new user. I am your virtual assistant, ready to guide you through the process. Please enter the username you'd like to set. Choose wisely, for this will be your identity in the system");
-							String newCustomerName = sc.nextLine();
-							System.out.println("Next, to secure your account, please create a password. Make it strong, as this will be the key to your safe haven");
-							String newCustomerPassword = sc.nextLine();
-							System.out.println("Account successfully created! Welcome to the digital realm. You’re officially in. Now go forth and conquer—just don’t forget your password, we’re not in the business of saving memories");
-							int newcustomerId = newUser(conn, newCustomerName, newCustomerPassword);
-							break;
+			loginButton.addActionListener(e -> showLoginForm());
+			createAccountButton.addActionListener(e -> showCreateAccountForm());
+			exitButton.addActionListener(e -> System.exit(0));
 
-						case 0:
-							System.out.println("Bye!");
-							System.exit(0);
-
-						default:
-							System.out.println("Invalid choice. Try again.");
-					}
-
-				}
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
+			frame.setVisible(true);
 		}
 	}
 
-	public static void main(String[] args) {
-		new Main();
+	private void showLoginForm() {
+		JTextField usernameField = new JTextField(15);
+		JPasswordField passwordField = new JPasswordField(15);
+
+		Object[] message = {
+				"Username:", usernameField,
+				"Password:", passwordField
+		};
+
+		int option = JOptionPane.showConfirmDialog(frame, message, "Login", JOptionPane.OK_CANCEL_OPTION);
+
+		if (option == JOptionPane.OK_OPTION) {
+			String username = usernameField.getText();
+			String password = new String(passwordField.getPassword());
+
+			int customerId = authenticateUser(conn, username, password);
+			if (customerId != -1) {
+				new UserMenu(conn, customerId);
+				frame.dispose();
+			} else {
+				JOptionPane.showMessageDialog(frame, "Invalid credentials.");
+			}
+		}
 	}
 
-	public void printMenu() {
-		System.out.println("1. Log into account");
-		System.out.println("2. Create an account");
-		System.out.println("0. Exit");
-		System.out.print("> ");
+	private void showCreateAccountForm() {
+		JTextField usernameField = new JTextField(15);
+		JPasswordField passwordField = new JPasswordField(15);
+
+		Object[] message = {
+				"Username:", usernameField,
+				"Password:", passwordField
+		};
+
+		int option = JOptionPane.showConfirmDialog(frame, message, "Create Account", JOptionPane.OK_CANCEL_OPTION);
+
+		if (option == JOptionPane.OK_OPTION) {
+			String username = usernameField.getText();
+			String password = new String(passwordField.getPassword());
+			int newCustomerId = newUser(conn, username, password);
+			if (newCustomerId != -1) {
+				JOptionPane.showMessageDialog(frame, "Account created successfully!");
+			} else {
+				JOptionPane.showMessageDialog(frame, "Failed to create account.");
+			}
+		}
 	}
 
 	private int authenticateUser(Connection conn, String username, String password) {
 		String query = "SELECT customerId FROM customer WHERE customerName = ? AND customerPassword = ?";
-
 		try (PreparedStatement pstmt = conn.prepareStatement(query)) {
 			pstmt.setString(1, username);
 			pstmt.setString(2, password);
@@ -91,21 +100,17 @@ public class Main {
 
 	private int newUser(Connection conn, String username, String password) {
 		String query = "INSERT INTO customer (customerName, customerPassword) VALUES (?, ?)";
-
 		try (PreparedStatement pstmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
 			pstmt.setString(1, username);
 			pstmt.setString(2, password);
 
 			int rowsAffected = pstmt.executeUpdate();
 			if (rowsAffected > 0) {
-				System.out.println("User created successfully!");
 				try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
 					if (generatedKeys.next()) {
 						return generatedKeys.getInt(1);
 					}
 				}
-			} else {
-				System.out.println("Failed to create user.");
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -113,4 +118,7 @@ public class Main {
 		return -1;
 	}
 
+	public static void main(String[] args) {
+		new Main();
+	}
 }
